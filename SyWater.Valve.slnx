@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SyWater.Valve.Api/SyWater.Valve.Api.csproj" />
+    <Project Path="src/SyWater.Valve.Application/SyWater.Valve.Application.csproj" />
+    <Project Path="src/SyWater.Valve.Domain/SyWater.Valve.Domain.csproj" />
+    <Project Path="src/SyWater.Valve.Infrastructure/SyWater.Valve.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SyWater.Valve.Api.Tests/SyWater.Valve.Api.Tests.csproj" />
+    <Project Path="tests/SyWater.Valve.Application.Tests/SyWater.Valve.Application.Tests.csproj" />
+    <Project Path="tests/SyWater.Valve.Domain.Tests/SyWater.Valve.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
