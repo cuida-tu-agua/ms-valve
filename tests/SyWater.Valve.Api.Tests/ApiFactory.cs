@@ -6,6 +6,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using SyWater.Valve.Api.Security;
@@ -84,6 +85,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
         builder.ConfigureTestServices(services =>
         {
+            // No background workers: CommandTimeoutSweeper sweeps at start-up on the SAME in-memory SQLite connection the
+            // test is using, and a SqliteConnection is not thread-safe (it made 1 test in ~3 fail at random). The timeout
+            // use case has its own tests in ms-valve's Application tests.
+            services.RemoveAll<IHostedService>();
+
             services.RemoveAll<ValveDbContext>();
             services.RemoveAll<DbContextOptions<ValveDbContext>>();
             var options = new DbContextOptionsBuilder<ValveDbContext>().UseSqlite(_sqlite).Options;
