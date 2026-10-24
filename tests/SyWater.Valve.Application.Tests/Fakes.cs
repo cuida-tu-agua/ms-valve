@@ -12,9 +12,18 @@ public sealed class FakeClock(DateTime start) : TimeProvider
 public sealed class FakePlaces : IPlaceAccessChecker
 {
     public HashSet<Guid> Mine { get; } = [];
+    /// <summary>Places of other people where the user collaborates, with the permissions the owner gave them.</summary>
+    public Dictionary<Guid, string[]> Shared { get; } = [];
     public bool Down { get; set; }
-    public Task<bool> CanManageAsync(Guid placeId, CancellationToken ct) =>
-        Down ? throw new ExternalServiceUnavailableException("place-service") : Task.FromResult(Mine.Contains(placeId));
+
+    public Task<PlaceAccess?> GetAccessAsync(Guid placeId, CancellationToken ct)
+    {
+        if (Down) throw new ExternalServiceUnavailableException("place-service");
+        if (Mine.Contains(placeId)) return Task.FromResult<PlaceAccess?>(new PlaceAccess("OWNER", []));
+        return Task.FromResult<PlaceAccess?>(Shared.TryGetValue(placeId, out var permissions)
+            ? new PlaceAccess("COLLABORATOR", permissions)
+            : null);
+    }
 }
 
 public sealed class FakeValves : IValveRepository

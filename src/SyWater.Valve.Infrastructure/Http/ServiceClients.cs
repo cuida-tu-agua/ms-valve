@@ -62,22 +62,35 @@ internal static class Calls
     }
 }
 
-/// <summary>ms-places "GET /api/places/{id}": 200 = mine, 404 = not mine or does not exist.</summary>
+/// <summary>
+/// ms-places "GET /api/places/{id}/access": 200 = owner or collaborator (role and permissions), 404 = no access at all
+/// or the place does not exist. Any other answer is "service unavailable", never a made-up access.
+/// </summary>
 public sealed class HttpPlaceAccessChecker(HttpClient http, IAccessTokenProvider tokens) : IPlaceAccessChecker
 {
     public const string ServiceName = "place-service";
 
-    public async Task<bool> CanManageAsync(Guid placeId, CancellationToken ct)
+    private sealed record AccessDto(string Role, string[]? Permissions);
+
+    public async Task<PlaceAccess?> GetAccessAsync(Guid placeId, CancellationToken ct)
     {
-        using var request = Calls.Authorized(HttpMethod.Get, $"api/places/{placeId}", tokens);
+        using var request = Calls.Authorized(HttpMethod.Get, $"api/places/{placeId}/access", tokens);
         using var response = await Calls.SendAsync(http, request, ServiceName, ct);
-        return response.StatusCode switch
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        if (response.StatusCode != HttpStatusCode.OK)
+            throw new ExternalServiceUnavailableException(ServiceName,
+                new HttpRequestException($"Unexpected status {(int)response.StatusCode}."));
+
+        try
         {
-            HttpStatusCode.OK => true,
-            HttpStatusCode.NotFound => false,
-            _ => throw new ExternalServiceUnavailableException(ServiceName,
-                new HttpRequestException($"Unexpected status {(int)response.StatusCode}.")),
-        };
+            var dto = await response.Content.ReadFromJsonAsync<AccessDto>(ct)
+                      ?? throw new ExternalServiceUnavailableException(ServiceName);
+            return new PlaceAccess(dto.Role, dto.Permissions ?? []);
+        }
+        catch (JsonException ex)
+        {
+            throw new ExternalServiceUnavailableException(ServiceName, ex);
+        }
     }
 }
 

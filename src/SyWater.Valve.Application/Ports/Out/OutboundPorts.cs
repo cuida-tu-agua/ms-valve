@@ -43,11 +43,44 @@ public interface IValveCommandRepository
     Task<IReadOnlyList<ValveCommand>> GetExpiredAsync(DateTime now, CancellationToken ct);
 }
 
-/// <summary>Asks place-service (with the user's token) whether the place exists and is theirs.</summary>
+/// <summary>Asks place-service (with the user's token) what the user may do in the place: owner, collaborator or nothing.</summary>
 public interface IPlaceAccessChecker
 {
+    /// <returns>The access of the user, or null if they have none (the place may not even exist).</returns>
     /// <exception cref="ExternalServiceUnavailableException">place-service did not answer.</exception>
-    Task<bool> CanManageAsync(Guid placeId, CancellationToken ct);
+    Task<PlaceAccess?> GetAccessAsync(Guid placeId, CancellationToken ct);
+}
+
+/// <summary>Role (OWNER / COLLABORATOR) and permission keys that place-service gives a user in a place.</summary>
+public sealed record PlaceAccess(string Role, IReadOnlyCollection<string> Permissions)
+{
+    public const string ViewDeviceStatus = "VIEW_DEVICE_STATUS";
+    public const string ControlValve = "CONTROL_VALVE";
+
+    public bool IsOwner => Role == "OWNER";
+
+    public bool Has(string permission) => IsOwner || Permissions.Contains(permission);
+}
+
+public static class PlaceAccessRules
+{
+    /// <summary>Seeing the valve (state, order progress, history): the owner, or a collaborator who sees the device or controls the valve.</summary>
+    public static readonly string[] CanSee = [PlaceAccess.ViewDeviceStatus, PlaceAccess.ControlValve];
+
+    /// <summary>Opening or closing it: the owner, or a collaborator with CONTROL_VALVE.</summary>
+    public static readonly string[] CanControl = [PlaceAccess.ControlValve];
+
+    /// <summary>
+    /// No access at all is 404, the same as a place that does not exist; access without the permission is 403.
+    /// </summary>
+    /// <exception cref="PlaceNotFoundException">The user has no access to the place.</exception>
+    /// <exception cref="PermissionDeniedException">The user is in the place but has none of the permissions.</exception>
+    public static async Task RequireAsync(
+        this IPlaceAccessChecker places, Guid placeId, string[] anyOf, CancellationToken ct)
+    {
+        var access = await places.GetAccessAsync(placeId, ct) ?? throw new PlaceNotFoundException(placeId);
+        if (!anyOf.Any(access.Has)) throw new PermissionDeniedException(anyOf[0]);
+    }
 }
 
 /// <summary>Asks ms-iam (with the user's token) to check and consume the e-mailed code (HU-020).</summary>

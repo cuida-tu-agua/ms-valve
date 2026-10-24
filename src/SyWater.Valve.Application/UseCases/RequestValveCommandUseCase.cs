@@ -7,7 +7,7 @@ namespace SyWater.Valve.Application.UseCases;
 
 /// <summary>
 /// HU-020 (close) / HU-021 (open). The order of the checks matters:
-///   1. the place is mine (ms-places)                    → 404
+///   1. the user may control the valve (ms-places)       → 404 no access, 403 no CONTROL_VALVE
 ///   2. it has a device/valve                            → 404 valve.not_found
 ///   3. no other order in progress                       → 409 valve.command_in_progress
 ///   4. not already in that state                        → 409 valve.already_in_state
@@ -31,7 +31,7 @@ public sealed class RequestValveCommandUseCase(
     public async Task<ValveCommandView> ExecuteAsync(
         Requester requester, Guid placeId, ValveAction action, string? code, CancellationToken ct)
     {
-        if (!await places.CanManageAsync(placeId, ct)) throw new PlaceNotFoundException(placeId);
+        await places.RequireAsync(placeId, PlaceAccessRules.CanControl, ct);
         var valve = await valves.GetByPlaceAsync(placeId, ct) ?? throw new ValveNotFoundException(placeId);
 
         var now = clock.GetUtcNow().UtcDateTime;
