@@ -5,14 +5,14 @@ using SyWater.Valve.Domain.Valves;
 
 namespace SyWater.Valve.Application.UseCases;
 
-/// <summary>HU-019. Someone else's place → 404, like a place without device.</summary>
+/// <summary>HU-019. Someone else's place → 404, like a place without device. A collaborator needs VIEW_DEVICE_STATUS or CONTROL_VALVE.</summary>
 public sealed class GetValveUseCase(
     IPlaceAccessChecker places, IValveRepository valves, IValveCommandRepository commands, ValvePolicy policy, TimeProvider clock)
     : IGetValveUseCase
 {
     public async Task<ValveView> ExecuteAsync(Guid placeId, CancellationToken ct)
     {
-        if (!await places.CanManageAsync(placeId, ct)) throw new PlaceNotFoundException(placeId);
+        await places.RequireAsync(placeId, PlaceAccessRules.CanSee, ct);
         var valve = await valves.GetByPlaceAsync(placeId, ct) ?? throw new ValveNotFoundException(placeId);
 
         var now = clock.GetUtcNow().UtcDateTime;
@@ -34,7 +34,7 @@ public sealed class GetValveCommandUseCase(IPlaceAccessChecker places, IValveCom
 {
     public async Task<ValveCommandView> ExecuteAsync(Guid placeId, Guid commandId, CancellationToken ct)
     {
-        if (!await places.CanManageAsync(placeId, ct)) throw new PlaceNotFoundException(placeId);
+        await places.RequireAsync(placeId, PlaceAccessRules.CanSee, ct);
         var command = await commands.GetAsync(placeId, commandId, ct) ?? throw new CommandNotFoundException(commandId);
 
         if (command.TimeOutIfExpired(clock.GetUtcNow().UtcDateTime) && !await commands.SaveOutcomeAsync(command, ct))
@@ -52,7 +52,7 @@ public sealed class ListValveCommandsUseCase(IPlaceAccessChecker places, IValveC
 
     public async Task<IReadOnlyList<ValveCommandView>> ExecuteAsync(Guid placeId, DateTime? fromUtc, DateTime? toUtc, CancellationToken ct)
     {
-        if (!await places.CanManageAsync(placeId, ct)) throw new PlaceNotFoundException(placeId);
+        await places.RequireAsync(placeId, PlaceAccessRules.CanSee, ct);
 
         var now = clock.GetUtcNow().UtcDateTime;
         var to = toUtc ?? now.AddMinutes(1);

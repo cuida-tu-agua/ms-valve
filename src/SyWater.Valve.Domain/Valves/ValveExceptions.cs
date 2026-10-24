@@ -6,6 +6,10 @@ namespace SyWater.Valve.Domain.Valves;
 public sealed class PlaceNotFoundException(Guid placeId)
     : DomainException("place.not_found", $"Place {placeId} was not found.");
 
+/// <summary>The user is a collaborator of the place but the owner did not give them this permission. HTTP 403.</summary>
+public sealed class PermissionDeniedException(string permission)
+    : DomainException("permission.denied", $"You do not have the permission {permission} in this place.");
+
 /// <summary>The place has no linked device, so there is no valve to see or move. HTTP 404.</summary>
 public sealed class ValveNotFoundException(Guid placeId)
     : DomainException("valve.not_found", $"Place {placeId} has no device with a valve.");
