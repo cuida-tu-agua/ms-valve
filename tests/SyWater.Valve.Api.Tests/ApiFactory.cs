@@ -32,7 +32,16 @@ public sealed class SqliteValveDbContext(DbContextOptions options) : ValveDbCont
 public sealed class FakePlaceAccess : IPlaceAccessChecker
 {
     public HashSet<Guid> Mine { get; } = [];
-    public Task<bool> CanManageAsync(Guid placeId, CancellationToken ct) => Task.FromResult(Mine.Contains(placeId));
+    /// <summary>Places of other people where the caller collaborates, with their permissions.</summary>
+    public Dictionary<Guid, string[]> Shared { get; } = [];
+
+    public Task<PlaceAccess?> GetAccessAsync(Guid placeId, CancellationToken ct)
+    {
+        if (Mine.Contains(placeId)) return Task.FromResult<PlaceAccess?>(new PlaceAccess("OWNER", []));
+        return Task.FromResult<PlaceAccess?>(Shared.TryGetValue(placeId, out var permissions)
+            ? new PlaceAccess("COLLABORATOR", permissions)
+            : null);
+    }
 }
 
 public sealed class FakeCodeVerifier : IConfirmationCodeVerifier
