@@ -14,6 +14,7 @@ public sealed class DomainExceptionHandler(IProblemDetailsService problemDetails
         var (status, code) = exception switch
         {
             PlaceNotFoundException e => (StatusCodes.Status404NotFound, e.Code),
+            PermissionDeniedException e => (StatusCodes.Status403Forbidden, e.Code),
             ValveNotFoundException e => (StatusCodes.Status404NotFound, e.Code),
             CommandNotFoundException e => (StatusCodes.Status404NotFound, e.Code),
             CommandInProgressException e => (StatusCodes.Status409Conflict, e.Code),
